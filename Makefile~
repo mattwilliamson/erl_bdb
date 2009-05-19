@@ -1,0 +1,7 @@
+all:
+	make src
+	make priv
+
+shell:
+	make all
+	erl -pa ebin
