@@ -1,8 +1,0 @@
-GCC=gcc
-LDFLAGS=-shared
-SRCS=`ls *.c`
-OUTPUT=bdb_drv.so
-CFLAGS=-o ${OUTPUT}
-
-all:
-	${GCC} ${SRCS} ${LDFLAGS} ${CFLAGS}
