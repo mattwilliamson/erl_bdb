@@ -89,6 +89,13 @@ handle_call({get, Key}, _From, State)
     Reply = send_command(State#state.port, Message),
     {reply, Reply, State};
 
+handle_call({delete, Key}, _From, State)
+  when is_binary(Key) ->
+    io:format("Deleting value for key ~p...~n", [Key]),
+    Message = <<3, Key/binary>>,
+    Reply = send_command(State#state.port, Message),
+    {reply, Reply, State};
+
 handle_call(_Request, _From, State) ->
     Reply = {error, unkown_call},
     {reply, Reply, State}.

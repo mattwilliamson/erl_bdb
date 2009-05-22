@@ -29,7 +29,7 @@ DRIVER_INIT(basic_driver) {
 
 static ErlDrvData start(ErlDrvPort port, char* cmd) {
   bdb_drv_t* retval = (bdb_drv_t*) driver_alloc(sizeof(bdb_drv_t));
-  u_int32_t open_flags = DB_CREATE;
+  u_int32_t open_flags = DB_CREATE | DB_THREAD;
   char *path = "test.db";
   DB *db;
   int status;
@@ -64,6 +64,10 @@ static void outputv(ErlDrvData handle, ErlIOVec *ev) {
     get(driver_data, ev);
     break;
 
+  case CMD_DEL:
+    del(driver_data, ev);
+    break;
+
   default:
     unkown(driver_data, ev);
   }
@@ -94,12 +98,25 @@ static void get(bdb_drv_t *bdb_drv, ErlIOVec *ev) {
   
   ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("ok"),
 			   ERL_DRV_ATOM, driver_mk_atom("get"),
-			   //ERL_DRV_BINARY, (ErlDrvTermData) key, KEY_SIZE, 0,
 			   ERL_DRV_BINARY, (ErlDrvTermData) value, value->orig_size, 0,
 			   ERL_DRV_TUPLE, 3};
 
   driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
   driver_free_binary(value);
+}
+
+static void del(bdb_drv_t *bdb_drv, ErlIOVec *ev) {
+  ErlDrvBinary* data = ev->binv[1];
+  char *bytes = data->orig_bytes;
+  char *key = bytes+1;
+  
+  db_del(bdb_drv->db, key);
+  
+  ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("ok"),
+			   ERL_DRV_ATOM, driver_mk_atom("delete"),
+			   ERL_DRV_TUPLE, 2};
+
+  driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
 }
 
 static void unkown(bdb_drv_t *bdb_drv, ErlIOVec *ev) {
@@ -167,4 +184,19 @@ ErlDrvBinary* db_get(DB *db, char *key_value) {
   memcpy(binary->orig_bytes, data.data, data.size);
 
   return binary;
+}
+
+void db_del(DB *db, char *key_value) {
+  ErlDrvBinary *binary;
+  int status;
+  DBT key;
+  DBT data;
+  
+  bzero(&key, sizeof(DBT));
+  bzero(&data, sizeof(DBT));
+    
+  key.data = key_value;
+  key.size = KEY_SIZE;
+  
+  status = db->del(db, NULL, &key, 0);
 }
