@@ -32,9 +32,10 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   u_int32_t open_flags = DB_CREATE;
   char *path = "test.db";
   DB *db;
+  int status;
   
   db_create(&db, NULL, 0);
-  db->open(db, NULL, path, NULL, DB_BTREE, open_flags, 0);
+  status = db->open(db, NULL, path, NULL, DB_BTREE, open_flags, 0);
 
   retval->port = port;
   retval->db = db;
@@ -69,12 +70,13 @@ static void outputv(ErlDrvData handle, ErlIOVec *ev) {
 }
 
 static void put(bdb_drv_t *bdb_drv, ErlIOVec *ev) {
-  ErlDrvBinary* data = ev->binv[1];
-  char *bytes = data->orig_bytes;
+  ErlDrvBinary* input = ev->binv[1];
+  char *bytes = input->orig_bytes;
   char *key = bytes+1;
-  int data_size = data->orig_size - 1 - KEY_SIZE;
+  char *data = bytes+1+KEY_SIZE;
+  int data_size = input->orig_size - 1 - KEY_SIZE;
 
-  db_put(bdb_drv->db, key, data_size, bytes);
+  db_put(bdb_drv->db, key, data_size, data);
 
   ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("ok"),
 			   ERL_DRV_ATOM, driver_mk_atom("put"),
@@ -95,10 +97,9 @@ static void get(bdb_drv_t *bdb_drv, ErlIOVec *ev) {
 			   //ERL_DRV_BINARY, (ErlDrvTermData) key, KEY_SIZE, 0,
 			   ERL_DRV_BINARY, (ErlDrvTermData) value, value->orig_size, 0,
 			   ERL_DRV_TUPLE, 3};
-  fprintf(stderr, "Returning value of size %d...\n", value->orig_size);
+
   driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
   driver_free_binary(value);
-  fprintf(stderr, "Returned value!\n");
 }
 
 static void unkown(bdb_drv_t *bdb_drv, ErlIOVec *ev) {
@@ -118,32 +119,18 @@ int db_put(DB *db, char *key_value, int data_size, char *data_value) {
   bzero(&key, sizeof(DBT));
   bzero(&data, sizeof(DBT));
   
-  key.data = &key_value;
+  key.data = key_value;
   key.size = KEY_SIZE;
   
-  data.data = &data_value;
+  data.data = data_value;
   data.size = data_size;
-
-  fprintf(stderr, "Putting key: (%d bytes)\n", data_size);
   
-  int i;
-  for(i=0;i<KEY_SIZE;i++) {
-    fprintf(stderr, "[%x]", key_value[i]);
-  }
-  
-  status = db->put(db, NULL, &key, &data, DB_NOOVERWRITE);
-  
-  if(status == DB_KEYEXIST) {
-    fprintf(stderr, "Key already exists!\n");
-  }
-
-  fprintf(stderr, "Put key status: %d\n", status);
-
+  status = db->put(db, NULL, &key, &data, 0);
+  db->sync(db, 0);
   return status;
 }
 
 ErlDrvBinary* db_get(DB *db, char *key_value) {
-  fprintf(stderr, "Getting value for key...\n");
   ErlDrvBinary *binary;
   int status;
   DBT key;
@@ -152,17 +139,32 @@ ErlDrvBinary* db_get(DB *db, char *key_value) {
   bzero(&key, sizeof(DBT));
   bzero(&data, sizeof(DBT));
     
-  key.data = &key_value;
+  key.data = key_value;
   key.size = KEY_SIZE;
   
   data.flags = DB_DBT_MALLOC;
   
   status = db->get(db, NULL, &key, &data, 0);
 
+  switch(status) {
+  case EINVAL:
+    fprintf(stderr, "Bad flag set for get!!!\n");
+  case ENOMEM:
+    fprintf(stderr, "NOT ENOUGH MEMORY!!!\n");
+  case DB_LOCK_DEADLOCK:
+    fprintf(stderr, "DEADLOCK!!!\n");
+  case DB_SECONDARY_BAD:
+    fprintf(stderr, "BAD PRIMARY KEY!!!\n");
+  case DB_NOTFOUND:
+    fprintf(stderr, "KEY NOT FOUND!!!\n");
+  case DB_KEYEMPTY:
+    fprintf(stderr, "KEY EMPTY!!!\n");
+  }
+
   binary = driver_alloc_binary(data.size);
   binary->orig_size = data.size;
+  //binary->orig_bytes = (char *)&data.data;
   memcpy(binary->orig_bytes, data.data, data.size);
-  //binary->orig_bytes = (char *)data->data;
-  fprintf(stderr, "Got Value! (%d bytes) Status: %d\n", data.size, status);
+
   return binary;
 }
