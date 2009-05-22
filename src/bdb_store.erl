@@ -77,9 +77,7 @@ init([]) ->
 handle_call({put, Key, Value}, _From, State)
   when is_binary(Key) and is_binary(Value) ->
     io:format("Putting value for key ~p...~n", [Key]),
-    KeySize = size(Key),
-    ValueSize = size(Value),
-    Message = <<1, KeySize:32, Key/binary, ValueSize:32, Value/binary>>,
+    Message = <<1, Key/binary, Value/binary>>,
     io:format("Message -> C: ~p~n", [Message]),
     Reply = send_command(State#state.port, Message),
     {reply, Reply, State};
@@ -87,7 +85,7 @@ handle_call({put, Key, Value}, _From, State)
 handle_call({get, Key}, _From, State)
   when is_binary(Key) ->
     io:format("Getting value for key ~p...~n", [Key]),
-    Message = <<2, Key>>,
+    Message = <<2, Key/binary>>,
     Reply = send_command(State#state.port, Message),
     {reply, Reply, State};
 
@@ -156,7 +154,7 @@ send_command(Port, Command) ->
 	Data ->
 	    io:format("Data: ~p~n", [Data]),
 	    Data
-    after 100 ->
+    after 500 ->
 	    io:format("Received nothing!~n"),
 	    {error, timeout}
     end.

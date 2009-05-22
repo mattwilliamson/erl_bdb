@@ -6,3 +6,6 @@ CFLAGS=-o ${OUTPUT}
 
 all:
 	${GCC} ${SRCS} ${LDFLAGS} ${CFLAGS}
+
+clean:
+	rm -rf ${OUTPUT}
