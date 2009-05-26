@@ -4,14 +4,20 @@
 #include <string.h>
 #include <db.h>
 
+// Path to file where data will be stored. 
+// It will be created if it doesn't exist
 #define DB_PATH "./store.db"
 
+// Binary commands between Erlang VM and Driver
 #define CMD_PUT 1
 #define CMD_GET 2
 #define CMD_DEL 3
 
+// Number of bytes for each key
+// (160 bits for SHA1 hash)
 #define KEY_SIZE 20
 
+// Define struct to hold state across calls
 typedef struct _bdb_drv_t {
   ErlDrvPort port;
  
