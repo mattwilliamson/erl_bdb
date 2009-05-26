@@ -36,6 +36,28 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   db_create(&db, NULL, 0);
   status = db->open(db, NULL, DB_PATH, NULL, DB_BTREE, open_flags, 0);
 
+  if(status != 0) {
+    char *error_reason;
+
+    switch(status){
+    case DB_OLD_VERSION:
+      error_reason = "the file was created with a different version.";
+      break;
+
+    case EINVAL:
+      error_reason = "the file was opened with incorrect flags. Perhaps the system does not support the DB_THREAD flag?";
+      break;
+
+    case DB_RUNRECOVERY:
+      error_reason = "the file needs to be recovered, it may be corrupt.";
+      break;
+    default:
+      error_reason = "of an unkown reason.";
+    }
+
+    fprintf(stderr, "Unabled to open file: %s because %s\n\n", DB_PATH, error_reason);
+  }
+
   retval->port = port;
   retval->db = db;
   
