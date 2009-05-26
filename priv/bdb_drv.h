@@ -4,6 +4,8 @@
 #include <string.h>
 #include <db.h>
 
+#define DB_PATH "./store.db"
+
 #define CMD_PUT 1
 #define CMD_GET 2
 #define CMD_DEL 3
@@ -24,6 +26,3 @@ static void put(bdb_drv_t *bdb_drv, ErlIOVec *ev);
 static void get(bdb_drv_t *bdb_drv, ErlIOVec *ev);
 static void del(bdb_drv_t *bdb_drv, ErlIOVec *ev);
 static void unkown(bdb_drv_t *bdb_drv, ErlIOVec *ev);
-int db_put(DB* db, char *key_value, int data_size, char* data_value);
-ErlDrvBinary* db_get(DB *db, char *key_value);
-void db_del(DB *db, char *key_value);
